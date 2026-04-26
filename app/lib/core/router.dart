@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../data/onboarding/onboarding_repository.dart';
+import '../features/about/about_screen.dart';
 import '../features/devotion/devotion_screen.dart';
 import '../features/onboarding/onboarding_providers.dart';
 import '../features/onboarding/onboarding_screen.dart';
@@ -31,6 +32,10 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/onboarding',
         builder: (context, state) => const OnboardingScreen(),
+      ),
+      GoRoute(
+        path: '/about',
+        builder: (context, state) => const AboutScreen(),
       ),
       ShellRoute(
         builder: (context, state, child) => HomeShell(child: child),

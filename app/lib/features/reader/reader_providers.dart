@@ -58,7 +58,10 @@ final bibleRepositoryProvider = FutureProvider<BibleRepository>((ref) async {
       'in tools/ to produce app/assets/bible/web.sqlite.',
     );
   }
-  final tamil = await BibleDatabase.openFromAsset('assets/bible/ta_uv.sqlite');
+  // Tamil Indian Revised Version (tam2017) — CC-BY-SA 4.0; attribution
+  // surfaced in the About screen (specs/0001-bible-reader/spec.md §Risks #2).
+  final tamil =
+      await BibleDatabase.openFromAsset('assets/bible/ta_irv.sqlite');
   return BibleRepository(web: web, tamil: tamil);
 });
 

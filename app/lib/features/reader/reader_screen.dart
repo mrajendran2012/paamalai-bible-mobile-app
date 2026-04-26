@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../core/i18n.dart';
 import '../../data/bible/book.dart';
 import '../../data/prefs/reader_prefs_repository.dart';
+import '../about/about_tile.dart';
 import 'reader_providers.dart';
 
 /// Browse books grouped OT / NT in the current reading language.
@@ -305,6 +306,9 @@ class _SettingsSheet extends ConsumerWidget {
               selected: {prefs.themeMode},
               onSelectionChanged: (s) => notifier.setThemeMode(s.first),
             ),
+            const SizedBox(height: 8),
+            const Divider(),
+            const AboutTile(),
           ],
         ),
       ),

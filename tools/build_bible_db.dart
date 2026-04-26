@@ -6,9 +6,13 @@
 //   dart run build_bible_db.dart            # use cached source files
 //   dart run build_bible_db.dart --fetch    # download missing sources first
 //
-// Sources (public domain):
-//   English  : World English Bible (WEB)            -> https://ebible.org/web/
-//   Tamil    : Tamil Union Version 1957 (TAUV)      -> https://ebible.org/tamil1857/
+// Sources:
+//   English  : World English Bible (WEB)               -> https://ebible.org/web/
+//                public domain
+//   Tamil    : Tamil Indian Revised Version (TAIRV)    -> https://ebible.org/tam2017/
+//                Creative Commons Attribution-ShareAlike 4.0 International
+//                (CC-BY-SA 4.0). Attribution surfaced in-app via the About
+//                screen — see specs/0001-bible-reader/spec.md §Risks #2.
 //
 // Source files live in `tools/_cache/<translation>/` (gitignored). Each
 // translation source can be either a USFM zip or the scrollmapper JSON dump;
@@ -31,13 +35,9 @@ const _cacheDir = '_cache';
 
 /// Source registry. Keep URLs stable; if eBible reorganises, override here.
 ///
-/// Tamil note (2026-04-25): the Tamil Union 1957 public-domain source assumed
-/// in the original spec is NOT hosted at ebible.org/tamil1857. The available
-/// Tamil Bibles on eBible are `tamtcv` (Biblica Contemporary, redistributable)
-/// and `tam2017` (Indian Revised, redistributable). Neither is public domain;
-/// both require a license review before bundling. Until the project owner
-/// picks a Tamil source, only WEB is built. See specs/0001-bible-reader/spec.md
-/// §Risks.
+/// Tamil resolution (2026-04-26): v1 ships `tam2017` (Tamil Indian Revised
+/// Version) under CC-BY-SA 4.0. Attribution requirement is met by the
+/// in-app About screen. See specs/0001-bible-reader/spec.md §Risks #2.
 const _sources = <String, _SourceSpec>{
   'WEB':  _SourceSpec(
     translationCode: 'WEB',
@@ -45,7 +45,15 @@ const _sources = <String, _SourceSpec>{
     primaryUrl: 'https://ebible.org/Scriptures/eng-web_usfm.zip',
     expectedVerses: 31102,
   ),
-  // 'TAUV': pending license/source decision (see note above).
+  'TAIRV': _SourceSpec(
+    translationCode: 'TAIRV',
+    outFile: 'ta_irv.sqlite',
+    primaryUrl: 'https://eBible.org/Scriptures/tam2017_usfm.zip',
+    // Tamil Bibles typically run a few dozen verses different from WEB due to
+    // edition-specific psalm-superscription handling. Verify_db reports the
+    // exact count after import.
+    expectedVerses: 31170,
+  ),
 };
 
 Future<void> main(List<String> argv) async {

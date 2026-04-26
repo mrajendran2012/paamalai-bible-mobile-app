@@ -7,6 +7,7 @@ import 'package:scrollable_positioned_list/scrollable_positioned_list.dart';
 import '../../core/i18n.dart';
 import '../../data/bible/book.dart';
 import '../../data/prefs/reader_prefs_repository.dart';
+import '../about/about_tile.dart';
 import 'reader_providers.dart';
 import 'verse_widget.dart';
 
@@ -291,6 +292,9 @@ class _ChapterSettingsSheet extends ConsumerWidget {
               selected: {prefs.themeMode},
               onSelectionChanged: (s) => notifier.setThemeMode(s.first),
             ),
+            const SizedBox(height: 8),
+            const Divider(),
+            const AboutTile(),
           ],
         ),
       ),

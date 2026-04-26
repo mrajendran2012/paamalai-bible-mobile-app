@@ -66,9 +66,12 @@ Each translation lives in a separate `.sqlite` file but uses the **same `books` 
 
 ## Risks / open questions
 
-1. **BSI Tamil text is copyrighted** and was the user's preferred Tamil translation. **Owner: project owner (M.R.) to initiate licensing conversation.**
-2. **Tamil source is unresolved (2026-04-25).** The original spec named "Tamil Union Version 1957 (public domain)" sourced from `ebible.org/tamil1857`, but that URL does not exist. Available Tamil Bibles on eBible are `tamtcv` (Biblica Tamil Contemporary Version, ~2.3 MB, marked redistributable) and `tam2017` (Tamil Indian Revised Version, ~2.0 MB, marked redistributable). Neither is public domain — both are under custom redistribution licenses that need review before bundling. **v1 currently ships English only**; project owner to pick the v1 Tamil source (or wait for BSI). Once chosen, add the entry to `_sources` in `tools/build_bible_db.dart`.
-3. **Tamil verse-numbering conventions** can differ by edition (e.g. Psalms heading numbers). The importer must normalize to the canonical Protestant numbering used by WEB to keep cross-translation seek (FR-BR-03) accurate.
+1. **BSI Tamil text is copyrighted** and was the user's preferred Tamil translation. **Owner: project owner (M.R.) to initiate licensing conversation.** A BSI swap-in is tracked as a post-launch follow-up in the master spec.
+2. ~~**Tamil source is unresolved.**~~ **Resolved 2026-04-26.** v1 ships the **Tamil Indian Revised Version** (`tam2017` on eBible.org) under **Creative Commons Attribution-ShareAlike 4.0 International (CC-BY-SA 4.0)**. Source: `https://eBible.org/Scriptures/tam2017_usfm.zip`. Wired through `tools/build_bible_db.dart` → `app/assets/bible/ta_irv.sqlite`.
+   - **Attribution obligations** (NFR-LEGAL): the app must (a) credit the translation and (b) link the CC-BY-SA 4.0 license. Implemented via the in-app **About** screen reachable from the Reader's display-settings sheet.
+   - **Share-alike scope:** CC-BY-SA only governs *modifications to the Bible text itself*. The app code remains under its own license; rendering CC-BY-SA content does not viral-infect the surrounding code (parallel to Wikipedia readers).
+   - The Tamil Open Contemporary Version (`tamocv`, also CC-BY-SA 4.0) is a kept-warm fallback if the project owner later wants the modern register instead.
+3. **Tamil verse-numbering conventions** can differ by edition (e.g. Psalms heading numbers). The importer must normalize to the canonical Protestant numbering used by WEB to keep cross-translation seek (FR-BR-03) accurate. **2026-04-26 status:** spot-check after importing tam2017; if mismatches surface, normalize in `_parseUsfmContent`.
 
 ## Verification
 
