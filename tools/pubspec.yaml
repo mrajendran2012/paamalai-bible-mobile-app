@@ -1,0 +1,14 @@
+name: paamalai_tools
+description: One-shot CLI tools (Bible importer, Postgres loader).
+publish_to: 'none'
+version: 0.0.1
+
+environment:
+  sdk: ">=3.4.0 <4.0.0"
+
+dependencies:
+  http: ^1.2.1
+  archive: ^3.6.1
+  sqlite3: ^2.4.0
+  args: ^2.5.0
+  postgres: ^3.4.4

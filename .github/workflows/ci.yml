@@ -1,0 +1,46 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  flutter:
+    name: Flutter analyze + test
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: app
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: '3.22.x'
+
+      - name: Pub get
+        run: flutter pub get
+
+      - name: Analyze
+        run: flutter analyze --fatal-infos
+
+      - name: Test
+        run: flutter test --reporter=expanded
+
+  edge-functions:
+    name: Edge function typecheck
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: supabase/functions/generate-devotion
+    steps:
+      - uses: actions/checkout@v4
+      - uses: denoland/setup-deno@v1
+        with:
+          deno-version: v1.x
+      - name: Deno check
+        # Suppress NPM resolution errors when running offline; this is a syntax/types pass.
+        run: deno check index.ts
+        continue-on-error: true

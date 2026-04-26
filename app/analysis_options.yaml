@@ -1,0 +1,14 @@
+include: package:flutter_lints/flutter.yaml
+
+analyzer:
+  exclude:
+    - "**/*.g.dart"
+    - "**/*.freezed.dart"
+    - "**/generated_plugin_registrant.dart"
+
+linter:
+  rules:
+    prefer_single_quotes: true
+    require_trailing_commas: true
+    sort_pub_dependencies: false   # we group by purpose, not alphabetically
+    avoid_print: true
