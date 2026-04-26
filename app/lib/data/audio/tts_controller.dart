@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter_tts/flutter_tts.dart';
 
 import '../bible/book.dart';
@@ -25,6 +26,10 @@ class TtsController {
   TtsController({FlutterTts? tts}) : _tts = tts ?? FlutterTts() {
     _tts.setCompletionHandler(_onUtteranceComplete);
     _tts.setErrorHandler((msg) {
+      if (kDebugMode) {
+        // ignore: avoid_print
+        print('[tts] error: $msg');
+      }
       _state = TtsPlaybackState.idle;
       _stateController.add(_state);
     });
@@ -32,6 +37,44 @@ class TtsController {
 
   final FlutterTts _tts;
   final _stateController = StreamController<TtsPlaybackState>.broadcast();
+
+  /// One-shot platform setup. Must complete before the first [speak]:
+  ///   * iOS audio session category must be `playback` or audio is silently
+  ///     routed to nowhere (most common cause of "play does nothing").
+  ///   * On Android the TTS engine binds lazily; the first `speak()` can be
+  ///     dropped if it fires before the binding completes. Calling a cheap
+  ///     query method first (`getLanguages`) forces the bind.
+  /// Idempotent — repeated calls are cheap.
+  Future<void> _ensureInit() async {
+    if (_initialised) return;
+    _initialised = true;
+
+    // Use the completion-handler pattern (default). Setting this to `true`
+    // would make `speak()` itself await completion, which would deadlock with
+    // our pause flow because `pause()` does not resolve an in-flight speak.
+    await _tts.awaitSpeakCompletion(false);
+
+    if (defaultTargetPlatform == TargetPlatform.iOS) {
+      await _tts.setSharedInstance(true);
+      await _tts.setIosAudioCategory(
+        IosTextToSpeechAudioCategory.playback,
+        [
+          IosTextToSpeechAudioCategoryOptions.mixWithOthers,
+          IosTextToSpeechAudioCategoryOptions.duckOthers,
+        ],
+        IosTextToSpeechAudioMode.spokenAudio,
+      );
+    }
+
+    // Force engine binding so the first user-initiated speak isn't dropped.
+    try {
+      await _tts.getLanguages;
+    } catch (_) {
+      // Web / unsupported platforms — ignore.
+    }
+  }
+
+  bool _initialised = false;
 
   Stream<TtsPlaybackState> get stateStream => _stateController.stream;
   TtsPlaybackState get state => _state;
@@ -92,6 +135,7 @@ class TtsController {
     String? voiceLocale,
     double speed = 1.0,
   }) async {
+    await _ensureInit();
     await _tts.stop();
     await setLanguage(lang);
     await setSpeed(speed);
@@ -106,6 +150,11 @@ class TtsController {
     if (_queue.isEmpty) return;
     _state = TtsPlaybackState.playing;
     _stateController.add(_state);
+    if (kDebugMode) {
+      // ignore: avoid_print
+      print('[tts] speak verse ${_index + 1}/${_queue.length}'
+          ' lang=$wantedLocale voice=$voiceName');
+    }
     await _tts.speak(_queue[_index]);
   }
 
