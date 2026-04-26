@@ -51,8 +51,10 @@ List<PlanDay> yearlyPlan(DateTime startDate) {
       allRefs.add(ChapterRef(code, c));
     }
   }
-  assert(allRefs.length == totalChapters,
-      'canon tables must sum to $totalChapters');
+  assert(
+    allRefs.length == totalChapters,
+    'canon tables must sum to $totalChapters',
+  );
 
   // 2. Slice into per-day buckets via Bresenham: day i gets 3 + (floor(i*94/365) - floor((i-1)*94/365)).
   final days = <PlanDay>[];
@@ -64,11 +66,13 @@ List<PlanDay> yearlyPlan(DateTime startDate) {
     final count = 3 + extra; // always 3 or 4
     final slice = allRefs.sublist(cursor, cursor + count);
     cursor += count;
-    days.add(PlanDay(
-      dayIndex: i,
-      date: start.add(Duration(days: i - 1)),
-      chapters: slice,
-    ));
+    days.add(
+      PlanDay(
+        dayIndex: i,
+        date: start.add(Duration(days: i - 1)),
+        chapters: slice,
+      ),
+    );
   }
   assert(cursor == totalChapters, 'plan must consume every chapter exactly once');
   return days;

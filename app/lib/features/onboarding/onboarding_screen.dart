@@ -16,8 +16,10 @@ class OnboardingScreen extends StatelessWidget {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text('Paamalai',
-                    style: Theme.of(context).textTheme.displaySmall),
+                Text(
+                  'Paamalai',
+                  style: Theme.of(context).textTheme.displaySmall,
+                ),
                 const SizedBox(height: 8),
                 const Text('Onboarding goes here (FR-ON-01..04).'),
                 const SizedBox(height: 24),

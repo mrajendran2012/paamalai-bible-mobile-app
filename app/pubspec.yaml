@@ -28,7 +28,7 @@ dependencies:
 
   # Content
   flutter_markdown: ^0.7.3
-  intl: ^0.19.0
+  intl: ^0.20.2
 
   # TTS + utilities
   flutter_tts: ^4.0.2
@@ -48,8 +48,10 @@ flutter:
   uses-material-design: true
 
   assets:
-    - assets/bible/web.sqlite
-    - assets/bible/ta_uv.sqlite
+    # Directory glob: web.sqlite and ta_uv.sqlite live here once
+    # tools/build_bible_db.dart has been run. Until then, the placeholder
+    # README.md keeps Flutter happy.
+    - assets/bible/
 
   fonts:
     - family: NotoSansTamil

@@ -25,8 +25,11 @@ void main() {
 
     test('every day has 3 or 4 chapters', () {
       for (final d in plan) {
-        expect(d.chapters.length, anyOf(3, 4),
-            reason: 'day ${d.dayIndex} had ${d.chapters.length}');
+        expect(
+          d.chapters.length,
+          anyOf(3, 4),
+          reason: 'day ${d.dayIndex} had ${d.chapters.length}',
+        );
       }
     });
 
@@ -38,8 +41,11 @@ void main() {
     test('covers all 1189 chapters with no duplicates and no gaps', () {
       final flat = plan.expand((d) => d.chapters).toList();
       expect(flat.length, totalChapters);
-      expect(flat.toSet().length, totalChapters,
-          reason: 'duplicate chapter references in plan');
+      expect(
+        flat.toSet().length,
+        totalChapters,
+        reason: 'duplicate chapter references in plan',
+      );
     });
 
     test('starts at Genesis 1 on day 1', () {
@@ -55,8 +61,11 @@ void main() {
       var i = 0;
       for (final code in canonOrder) {
         for (var c = 1; c <= canonChapterCounts[code]!; c++) {
-          expect(flat[i], ChapterRef(code, c),
-              reason: 'mismatch at position $i');
+          expect(
+            flat[i],
+            ChapterRef(code, c),
+            reason: 'mismatch at position $i',
+          );
           i++;
         }
       }
