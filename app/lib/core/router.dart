@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 
 import '../features/devotion/devotion_screen.dart';
 import '../features/onboarding/onboarding_screen.dart';
+import '../features/plan/catch_up_screen.dart';
 import '../features/plan/plan_screen.dart';
 import '../features/reader/chapter_view.dart';
 import '../features/reader/reader_screen.dart';
@@ -19,7 +20,16 @@ final routerProvider = Provider<GoRouter>((ref) {
       ShellRoute(
         builder: (context, state, child) => HomeShell(child: child),
         routes: [
-          GoRoute(path: '/plan', builder: (_, __) => const PlanScreen()),
+          GoRoute(
+            path: '/plan',
+            builder: (_, __) => const PlanScreen(),
+            routes: [
+              GoRoute(
+                path: 'catch-up',
+                builder: (_, __) => const CatchUpScreen(),
+              ),
+            ],
+          ),
           GoRoute(path: '/devotion', builder: (_, __) => const DevotionScreen()),
           GoRoute(
             path: '/reader',

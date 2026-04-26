@@ -19,6 +19,7 @@ P1 (Yearly Reader). P3 (Listener) reaches the plan's chapters indirectly via the
 
 ### FR-YP-03 — Progress tracking
 - **Given** the user marks a day complete, **Then** a `reading_progress` row is written to Supabase **and** mirrored locally for offline. The day is shown as completed across devices for the same account.
+- **v0 status (2026-04-25):** local persistence (SharedPreferences) is in place; Supabase write + cross-device read are deferred until the local Supabase stack is running. Tracked by tasks.md T7.
 
 ### FR-YP-04 — Catch-up
 - **Given** the user has missed ≥1 day, **When** they open the Plan tab, **Then** a banner shows the count of missed days and a *Catch up* action listing the missed chapters; nothing is auto-skipped, nothing is auto-marked complete.
