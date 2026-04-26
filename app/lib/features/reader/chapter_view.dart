@@ -135,33 +135,6 @@ class _ChapterViewState extends ConsumerState<ChapterView> {
           },
         ),
         actions: [
-          asyncBooks.maybeWhen(
-            data: (books) {
-              final book = books.firstWhere(
-                (b) => b.code == widget.bookCode,
-                orElse: () => Book(
-                  id: 0,
-                  code: widget.bookCode,
-                  nameEn: widget.bookCode,
-                  nameTa: widget.bookCode,
-                  order: 0,
-                  testament: 'OT',
-                ),
-              );
-              return IconButton(
-                tooltip: ttsState == TtsPlaybackState.playing
-                    ? prefs.language.t('Pause', 'இடைநிறுத்து')
-                    : prefs.language.t('Play', 'வாசிக்க'),
-                icon: Icon(
-                  ttsState == TtsPlaybackState.playing
-                      ? Icons.pause_circle_outline
-                      : Icons.play_circle_outline,
-                ),
-                onPressed: book.id == 0 ? null : () => _onPlayTapped(book.id),
-              );
-            },
-            orElse: () => const SizedBox.shrink(),
-          ),
           _LangPill(
             current: prefs.language,
             tamilEnabled: asyncRepo.maybeWhen(
@@ -245,6 +218,35 @@ class _ChapterViewState extends ConsumerState<ChapterView> {
             },
           );
         },
+      ),
+      floatingActionButton: asyncBooks.maybeWhen(
+        data: (books) {
+          final book = books.firstWhere(
+            (b) => b.code == widget.bookCode,
+            orElse: () => Book(
+              id: 0,
+              code: widget.bookCode,
+              nameEn: widget.bookCode,
+              nameTa: widget.bookCode,
+              order: 0,
+              testament: 'OT',
+            ),
+          );
+          if (book.id == 0) return const SizedBox.shrink();
+          final isPlaying = ttsState == TtsPlaybackState.playing;
+          return FloatingActionButton.extended(
+            onPressed: () => _onPlayTapped(book.id),
+            icon: Icon(isPlaying ? Icons.pause : Icons.play_arrow),
+            label: Text(
+              isPlaying
+                  ? prefs.language.t('Pause', 'இடைநிறுத்து')
+                  : ttsState == TtsPlaybackState.paused
+                      ? prefs.language.t('Resume', 'தொடரவும்')
+                      : prefs.language.t('Listen', 'கேள்'),
+            ),
+          );
+        },
+        orElse: () => const SizedBox.shrink(),
       ),
     );
   }
