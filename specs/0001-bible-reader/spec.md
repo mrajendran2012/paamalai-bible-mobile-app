@@ -65,8 +65,9 @@ Each translation lives in a separate `.sqlite` file but uses the **same `books` 
 
 ## Risks / open questions
 
-1. **BSI Tamil text is copyrighted** and was the user's preferred Tamil translation. v1 ships Tamil Union Version 1957 (public domain) as a substitute. Once BSI licensing is signed, swap by regenerating `ta.sqlite` with the BSI text and bumping the asset version. **Owner: project owner (M.R.) to initiate licensing conversation.**
-2. **Tamil verse-numbering conventions** can differ by edition (e.g. Psalms heading numbers). The importer must normalize to the canonical Protestant numbering used by WEB to keep cross-translation seek (FR-BR-03) accurate.
+1. **BSI Tamil text is copyrighted** and was the user's preferred Tamil translation. **Owner: project owner (M.R.) to initiate licensing conversation.**
+2. **Tamil source is unresolved (2026-04-25).** The original spec named "Tamil Union Version 1957 (public domain)" sourced from `ebible.org/tamil1857`, but that URL does not exist. Available Tamil Bibles on eBible are `tamtcv` (Biblica Tamil Contemporary Version, ~2.3 MB, marked redistributable) and `tam2017` (Tamil Indian Revised Version, ~2.0 MB, marked redistributable). Neither is public domain — both are under custom redistribution licenses that need review before bundling. **v1 currently ships English only**; project owner to pick the v1 Tamil source (or wait for BSI). Once chosen, add the entry to `_sources` in `tools/build_bible_db.dart`.
+3. **Tamil verse-numbering conventions** can differ by edition (e.g. Psalms heading numbers). The importer must normalize to the canonical Protestant numbering used by WEB to keep cross-translation seek (FR-BR-03) accurate.
 
 ## Verification
 

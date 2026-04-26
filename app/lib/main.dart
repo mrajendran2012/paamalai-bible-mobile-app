@@ -1,10 +1,14 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'app.dart';
 import 'core/env.dart';
+import 'core/providers.dart';
+import 'data/prefs/reader_prefs_repository.dart';
+import 'features/reader/reader_providers.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -21,5 +25,18 @@ Future<void> main() async {
     );
   }
 
-  runApp(const ProviderScope(child: PaamalaiApp()));
+  final sharedPrefs = await SharedPreferences.getInstance();
+  final prefsRepo = ReaderPrefsRepository(sharedPrefs);
+  final initialPrefs = prefsRepo.read();
+
+  runApp(
+    ProviderScope(
+      overrides: [
+        sharedPreferencesProvider.overrideWithValue(sharedPrefs),
+        prefsRepositoryProvider.overrideWithValue(prefsRepo),
+        initialReaderPrefsProvider.overrideWithValue(initialPrefs),
+      ],
+      child: const PaamalaiApp(),
+    ),
+  );
 }

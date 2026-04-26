@@ -21,6 +21,7 @@
 
 import 'dart:convert';
 import 'dart:io';
+import 'package:archive/archive.dart';
 import 'package:args/args.dart';
 import 'package:http/http.dart' as http;
 import 'package:sqlite3/sqlite3.dart';
@@ -29,20 +30,22 @@ const _outDir = '../app/assets/bible';
 const _cacheDir = '_cache';
 
 /// Source registry. Keep URLs stable; if eBible reorganises, override here.
+///
+/// Tamil note (2026-04-25): the Tamil Union 1957 public-domain source assumed
+/// in the original spec is NOT hosted at ebible.org/tamil1857. The available
+/// Tamil Bibles on eBible are `tamtcv` (Biblica Contemporary, redistributable)
+/// and `tam2017` (Indian Revised, redistributable). Neither is public domain;
+/// both require a license review before bundling. Until the project owner
+/// picks a Tamil source, only WEB is built. See specs/0001-bible-reader/spec.md
+/// §Risks.
 const _sources = <String, _SourceSpec>{
   'WEB':  _SourceSpec(
     translationCode: 'WEB',
     outFile: 'web.sqlite',
-    primaryUrl: 'https://ebible.org/Scriptures/web_usfm.zip',
+    primaryUrl: 'https://ebible.org/Scriptures/eng-web_usfm.zip',
     expectedVerses: 31102,
   ),
-  'TAUV': _SourceSpec(
-    translationCode: 'TAUV',
-    outFile: 'ta_uv.sqlite',
-    // The Tamil 1857 (Union) dump from eBible. Confirm this URL on first run.
-    primaryUrl: 'https://ebible.org/Scriptures/tamil1857_usfm.zip',
-    expectedVerses: 31170,
-  ),
+  // 'TAUV': pending license/source decision (see note above).
 };
 
 Future<void> main(List<String> argv) async {
@@ -185,22 +188,133 @@ void _insertVerses(Database db, List<_VerseRow> verses) {
 // source uses one-big-USFM we can branch on that.
 
 List<_VerseRow> _parseUsfmZip(File zipFile, {required String translation}) {
-  // The `archive` package is in pubspec.yaml; read lazily to keep the script
-  // free of side effects when used by tests.
-  // ignore: prefer_relative_imports
-  // Inline import via dynamic require pattern would be cleaner, but Dart
-  // doesn't support that — keep it simple and import at the top.
-  throw UnimplementedError(
-    'USFM parsing is not implemented yet. See specs/0001-bible-reader/tasks.md T1.\n'
-    "Implement against the source zip at ${zipFile.path}.\n"
-    'Recommended approach:\n'
-    '  - Walk archive entries; for each *.usfm:\n'
-    '      - Extract the 3-letter book code from the filename.\n'
-    '      - Map to canonical code via _usfmToCanon.\n'
-    "      - Tokenize lines: '\\c N' -> set chapter; '\\v N text...' -> emit row.\n"
-    '      - Strip any non-text USFM markers (\\p, \\q, \\f...\\f*, etc.).\n'
-    '  - Return all rows tagged with translation=$translation.\n',
-  );
+  final bytes = zipFile.readAsBytesSync();
+  final archive = ZipDecoder().decodeBytes(bytes);
+  final out = <_VerseRow>[];
+
+  // Sort longest-first so '1SA' is tested before any 2-char prefix overlap.
+  final codes = _usfmToCanon.keys.toList()
+    ..sort((a, b) => b.length.compareTo(a.length));
+
+  for (final f in archive) {
+    if (!f.isFile) continue;
+    final name = f.name;
+    if (!name.toLowerCase().endsWith('.usfm')) continue;
+    final base = name.split('/').last.split('.').first;
+
+    String? bookCode;
+    for (final code in codes) {
+      // eBible filenames look like '41-MATeng-web.usfm' or 'MAT.usfm'.
+      // The book code is uppercase, preceded by start-of-string or '-',
+      // and followed by the lowercase language code or end-of-string.
+      final pattern =
+          RegExp(r'(?:^|-)' + RegExp.escape(code) + r'(?=[a-z\-]|$)');
+      if (pattern.hasMatch(base)) {
+        bookCode = _usfmToCanon[code]!;
+        break;
+      }
+    }
+    if (bookCode == null) continue;
+
+    final raw = f.content as List<int>;
+    final content = utf8
+        .decode(raw, allowMalformed: true)
+        .replaceFirst('﻿', ''); // strip BOM if present
+    out.addAll(_parseUsfmContent(content, bookCode, translation));
+  }
+  return out;
+}
+
+/// Parse a single USFM document into verse rows. Pure: no I/O.
+List<_VerseRow> _parseUsfmContent(
+  String content,
+  String bookCode,
+  String translation,
+) {
+  final out = <_VerseRow>[];
+  int? chapter;
+  int? verse;
+  final buf = StringBuffer();
+
+  void flush() {
+    if (chapter != null && verse != null) {
+      final text = _cleanMarkers(buf.toString());
+      if (text.isNotEmpty) {
+        out.add(_VerseRow(bookCode, chapter!, verse!, translation, text));
+      }
+    }
+    buf.clear();
+  }
+
+  // \c N or \v N (verse number can have a trailing alpha marker like '\v 16a').
+  final re = RegExp(r'\\([cv])\s+(\d+)[a-z]?\s?');
+  var cursor = 0;
+  for (final m in re.allMatches(content)) {
+    if (m.start > cursor) buf.write(content.substring(cursor, m.start));
+    final kind = m.group(1)!;
+    final n = int.parse(m.group(2)!);
+    if (kind == 'c') {
+      flush();
+      chapter = n;
+      verse = null;
+    } else {
+      flush();
+      verse = n;
+    }
+    cursor = m.end;
+  }
+  if (cursor < content.length) buf.write(content.substring(cursor));
+  flush();
+  return out;
+}
+
+/// Strip USFM markup, leaving only the textual content of a verse.
+String _cleanMarkers(String input) {
+  var s = input;
+
+  // 1. Drop footnotes / cross-refs / figures (paired markers, lazy match).
+  for (final tag in const ['f', 'fe', 'x', 'fig']) {
+    s = s.replaceAll(
+      RegExp('\\\\$tag\\b[\\s\\S]*?\\\\$tag\\*'),
+      '',
+    );
+  }
+
+  // 2. Drop heading / metadata lines whose first marker is non-verse content.
+  const headingTags = {
+    'h', 'toc1', 'toc2', 'toc3',
+    'mt', 'mt1', 'mt2', 'mt3', 'mt4',
+    'ms', 'ms1', 'ms2', 'mr',
+    's', 's1', 's2', 's3', 's4', 'sr',
+    'r', 'rq', 'd', 'sp',
+    'rem', 'id', 'ide',
+    'imt', 'imt1', 'imt2', 'imt3', 'imt4',
+    'is', 'is1', 'is2',
+    'ip', 'ipi', 'ipq', 'iot',
+    'io', 'io1', 'io2',
+    'ie', 'iex', 'imte', 'imte1', 'imte2',
+    'cp', 'ca', 'va', 'vp', 'cl',
+  };
+  s = s.split('\n').where((line) {
+    final t = line.trimLeft();
+    if (!t.startsWith('\\')) return true;
+    final m = RegExp(r'\\([a-z]+\d*)').firstMatch(t);
+    if (m == null) return true;
+    return !headingTags.contains(m.group(1));
+  }).join('\n');
+
+  // 3. Strip USFM 3 word attributes: text|attr="val"  -> text
+  //    The pipe delimits the attribute block; everything up to the next
+  //    backslash (close marker) belongs to attributes, not the rendered text.
+  s = s.replaceAll(RegExp(r'\|[^\\\n]*'), '');
+
+  // 4. Strip remaining markers — closes first, then opens.
+  //    `\+?` allows nested character markers (USFM 3): \+w ... \+w*.
+  s = s.replaceAll(RegExp(r'\\\+?[a-z]+\d*\*'), '');
+  s = s.replaceAll(RegExp(r'\\\+?[a-z]+\d*\b\s?'), '');
+
+  // 5. Whitespace normalisation.
+  return s.replaceAll(RegExp(r'\s+'), ' ').trim();
 }
 
 /// USFM 3-letter code -> our canonical code.

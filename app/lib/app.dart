@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'core/router.dart';
 import 'core/theme.dart';
+import 'features/reader/reader_providers.dart';
 
 class PaamalaiApp extends ConsumerWidget {
   const PaamalaiApp({super.key});
@@ -11,13 +12,14 @@ class PaamalaiApp extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final router = ref.watch(routerProvider);
+    final themeMode = ref.watch(readerPrefsProvider).themeMode;
 
     return MaterialApp.router(
       title: 'Paamalai',
       debugShowCheckedModeBanner: false,
       theme: lightTheme,
       darkTheme: darkTheme,
-      themeMode: ThemeMode.system,
+      themeMode: themeMode,
       routerConfig: router,
       supportedLocales: const [Locale('en'), Locale('ta')],
       localizationsDelegates: const [
