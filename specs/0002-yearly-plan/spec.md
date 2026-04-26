@@ -28,6 +28,10 @@ P1 (Yearly Reader). P3 (Listener) reaches the plan's chapters indirectly via the
 
 `reading_plans` and `reading_progress` from the master spec. The plan itself is **not** stored — it is derived deterministically from `reading_plans.started_on`, so any device can rebuild it.
 
+## Localization
+
+All Plan + Catch-up shell strings (titles, day labels, button copy, weekday/month names, "Mark complete" / "Catch up", etc.) follow `ReaderPrefs.language`. Book names route through `bookNameFor(code, isTamil)` in `data/plan/canon.dart`, which mirrors the SQLite `books.name_ta` column so Plan-screen book names match the Reader. v1 inlines EN/TA pairs via `core/i18n.dart` — ARB migration deferred per master NFR-I18N.
+
 ## Out of scope
 
 - Multiple concurrent plans per user

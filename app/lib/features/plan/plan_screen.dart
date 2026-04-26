@@ -3,22 +3,29 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
+import '../../core/i18n.dart';
+import '../../data/bible/book.dart';
 import '../../data/plan/canon.dart';
 import '../../data/plan/yearly_plan.dart';
+import '../reader/reader_providers.dart';
 import 'plan_providers.dart';
 
 /// Persona P1 — Yearly Reader. Today's plan is the home screen for them.
 /// Implements FR-YP-02 (today + chapter cards + mark complete) and FR-YP-04
 /// (catch-up banner). Cross-device sync (FR-YP-03) is local-only in v0.
+///
+/// All visible strings respect [ReaderPrefs.language]; book names route
+/// through [bookNameFor] so they match the SQLite `books.name_ta` column.
 class PlanScreen extends ConsumerWidget {
   const PlanScreen({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(planControllerProvider);
+    final lang = ref.watch(readerPrefsProvider.select((p) => p.language));
 
     return Scaffold(
-      appBar: AppBar(title: const Text("Today's Plan")),
+      appBar: AppBar(title: Text(lang.t("Today's Plan", 'இன்றைய திட்டம்'))),
       body: state.hasPlan ? const _ActivePlanBody() : const _EmptyPlanBody(),
     );
   }
@@ -29,6 +36,7 @@ class _EmptyPlanBody extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final lang = ref.watch(readerPrefsProvider.select((p) => p.language));
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(24),
@@ -42,18 +50,24 @@ class _EmptyPlanBody extends ConsumerWidget {
             ),
             const SizedBox(height: 16),
             Text(
-              'Start the year-long plan',
+              lang.t(
+                'Start the year-long plan',
+                'ஓராண்டு திட்டத்தைத் தொடங்குங்கள்',
+              ),
               style: Theme.of(context).textTheme.titleLarge,
             ),
             const SizedBox(height: 8),
-            const Text(
-              'Read the whole Bible in 365 days, three to four chapters a day.',
+            Text(
+              lang.t(
+                'Read the whole Bible in 365 days, three to four chapters a day.',
+                '365 நாட்களில் முழு வேதாகமத்தை வாசியுங்கள் — ஒரு நாளைக்கு மூன்று முதல் நான்கு அதிகாரங்கள்.',
+              ),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 24),
             FilledButton.icon(
               icon: const Icon(Icons.play_arrow),
-              label: const Text('Start today'),
+              label: Text(lang.t('Start today', 'இன்று தொடங்கு')),
               onPressed: () =>
                   ref.read(planControllerProvider.notifier).startPlan(),
             ),
@@ -89,14 +103,17 @@ class _ActivePlanBody extends ConsumerWidget {
   }
 }
 
-class _CatchUpBanner extends StatelessWidget {
+class _CatchUpBanner extends ConsumerWidget {
   const _CatchUpBanner({required this.missedCount});
   final int missedCount;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final lang = ref.watch(readerPrefsProvider.select((p) => p.language));
     final scheme = Theme.of(context).colorScheme;
-    final word = missedCount == 1 ? 'day' : 'days';
+    final headline = lang == Lang.ta
+        ? '$missedCount நாள் பின்தங்கியுள்ளீர்கள்'
+        : "You're $missedCount ${missedCount == 1 ? 'day' : 'days'} behind";
     return Padding(
       padding: const EdgeInsets.only(bottom: 16),
       child: Material(
@@ -113,7 +130,7 @@ class _CatchUpBanner extends StatelessWidget {
                 const SizedBox(width: 12),
                 Expanded(
                   child: Text(
-                    "You're $missedCount $word behind",
+                    headline,
                     style: TextStyle(
                       color: scheme.onTertiaryContainer,
                       fontWeight: FontWeight.w600,
@@ -121,7 +138,7 @@ class _CatchUpBanner extends StatelessWidget {
                   ),
                 ),
                 Text(
-                  'Catch up',
+                  lang.t('Catch up', 'பிடிக்க'),
                   style: TextStyle(color: scheme.onTertiaryContainer),
                 ),
                 Icon(Icons.chevron_right, color: scheme.onTertiaryContainer),
@@ -141,9 +158,14 @@ class _TodayCard extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(planControllerProvider);
+    final lang = ref.watch(readerPrefsProvider.select((p) => p.language));
     final isComplete = state.completedDays.contains(day.dayIndex);
     final scheme = Theme.of(context).colorScheme;
-    final dateLabel = DateFormat('EEEE, MMMM d').format(day.date);
+    final dateLabel =
+        DateFormat('EEEE, MMMM d', dateLocaleFor(lang)).format(day.date);
+    final dayHeader = lang == Lang.ta
+        ? '365-இல் ${day.dayIndex}-ஆம் நாள்'
+        : 'Day ${day.dayIndex} of 365';
 
     return Card(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
@@ -153,28 +175,32 @@ class _TodayCard extends ConsumerWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Day ${day.dayIndex} of 365',
+              dayHeader,
               style: TextStyle(color: scheme.primary, fontWeight: FontWeight.w600),
             ),
             const SizedBox(height: 4),
             Text(dateLabel, style: Theme.of(context).textTheme.titleLarge),
             const SizedBox(height: 16),
             for (final ch in day.chapters)
-              _ChapterCard(chapter: ch, completed: isComplete),
+              _ChapterCard(chapter: ch, completed: isComplete, lang: lang),
             const SizedBox(height: 16),
             SizedBox(
               width: double.infinity,
               child: isComplete
                   ? OutlinedButton.icon(
                       icon: const Icon(Icons.check_circle, size: 18),
-                      label: const Text('Completed — undo'),
+                      label: Text(
+                        lang.t('Completed — undo', 'முடிந்தது — மீட்டமை'),
+                      ),
                       onPressed: () => ref
                           .read(planControllerProvider.notifier)
                           .unmark(day.dayIndex),
                     )
                   : FilledButton.icon(
                       icon: const Icon(Icons.check, size: 18),
-                      label: const Text('Mark complete'),
+                      label: Text(
+                        lang.t('Mark complete', 'முடிந்தது என்று குறி'),
+                      ),
                       onPressed: () => ref
                           .read(planControllerProvider.notifier)
                           .markComplete(day.dayIndex),
@@ -188,13 +214,18 @@ class _TodayCard extends ConsumerWidget {
 }
 
 class _ChapterCard extends StatelessWidget {
-  const _ChapterCard({required this.chapter, required this.completed});
+  const _ChapterCard({
+    required this.chapter,
+    required this.completed,
+    required this.lang,
+  });
   final ChapterRef chapter;
   final bool completed;
+  final Lang lang;
 
   @override
   Widget build(BuildContext context) {
-    final name = bookNamesEn[chapter.bookCode] ?? chapter.bookCode;
+    final name = bookNameFor(chapter.bookCode, lang == Lang.ta);
     final scheme = Theme.of(context).colorScheme;
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
@@ -236,6 +267,7 @@ class _WeekStrip extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final week = ref.watch(weekStripProvider);
     final state = ref.watch(planControllerProvider);
+    final lang = ref.watch(readerPrefsProvider.select((p) => p.language));
     if (week.isEmpty) return const SizedBox.shrink();
     final scheme = Theme.of(context).colorScheme;
     final today = ref.watch(todayDayIndexProvider);
@@ -248,7 +280,7 @@ class _WeekStrip extends ConsumerWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'This week',
+              lang.t('This week', 'இந்த வாரம்'),
               style: Theme.of(context).textTheme.titleSmall?.copyWith(
                     color: scheme.primary,
                     fontWeight: FontWeight.w600,
@@ -263,6 +295,7 @@ class _WeekStrip extends ConsumerWidget {
                       day: d,
                       completed: state.completedDays.contains(d.dayIndex),
                       isToday: d.dayIndex == today,
+                      lang: lang,
                     ),
                   ),
               ],
@@ -279,16 +312,22 @@ class _WeekCell extends StatelessWidget {
     required this.day,
     required this.completed,
     required this.isToday,
+    required this.lang,
   });
 
   final PlanDay day;
   final bool completed;
   final bool isToday;
+  final Lang lang;
 
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    final weekday = DateFormat('E').format(day.date).substring(0, 1);
+    final weekday = DateFormat('E', dateLocaleFor(lang))
+        .format(day.date)
+        .characters
+        .first
+        .toString();
     final bg = isToday
         ? scheme.primary
         : completed
@@ -323,11 +362,12 @@ class _WeekCell extends StatelessWidget {
   }
 }
 
-class _PlanCompleteBody extends StatelessWidget {
+class _PlanCompleteBody extends ConsumerWidget {
   const _PlanCompleteBody();
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final lang = ref.watch(readerPrefsProvider.select((p) => p.language));
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(24),
@@ -341,12 +381,15 @@ class _PlanCompleteBody extends StatelessWidget {
             ),
             const SizedBox(height: 16),
             Text(
-              'Plan complete',
+              lang.t('Plan complete', 'திட்டம் நிறைவடைந்தது'),
               style: Theme.of(context).textTheme.titleLarge,
             ),
             const SizedBox(height: 8),
-            const Text(
-              "You've finished the 365-day plan. Start a new one anytime.",
+            Text(
+              lang.t(
+                "You've finished the 365-day plan. Start a new one anytime.",
+                '365 நாள் திட்டத்தை முடித்துவிட்டீர்கள். எப்போது வேண்டுமானாலும் புதியதைத் தொடங்கலாம்.',
+              ),
               textAlign: TextAlign.center,
             ),
           ],

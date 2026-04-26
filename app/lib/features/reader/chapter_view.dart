@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:scrollable_positioned_list/scrollable_positioned_list.dart';
 
+import '../../core/i18n.dart';
 import '../../data/bible/book.dart';
 import '../../data/prefs/reader_prefs_repository.dart';
 import 'reader_providers.dart';
@@ -100,8 +101,13 @@ class _ChapterViewState extends ConsumerState<ChapterView> {
           PopupMenuButton<_MenuAction>(
             icon: const Icon(Icons.more_vert),
             onSelected: (a) => _onMenu(a, context, ref),
-            itemBuilder: (_) => const [
-              PopupMenuItem(value: _MenuAction.settings, child: Text('Display settings')),
+            itemBuilder: (_) => [
+              PopupMenuItem(
+                value: _MenuAction.settings,
+                child: Text(
+                  prefs.language.t('Display settings', 'காட்சி அமைப்புகள்'),
+                ),
+              ),
             ],
           ),
         ],
@@ -129,11 +135,14 @@ class _ChapterViewState extends ConsumerState<ChapterView> {
             data: (verses) {
               _logFirstFrame(verses.length);
               if (verses.isEmpty) {
-                return const Center(
+                return Center(
                   child: Padding(
-                    padding: EdgeInsets.all(24),
+                    padding: const EdgeInsets.all(24),
                     child: Text(
-                      'No verses for this chapter in the selected translation.',
+                      prefs.language.t(
+                        'No verses for this chapter in the selected translation.',
+                        'தேர்ந்தெடுத்த மொழிபெயர்ப்பில் இந்த அதிகாரத்திற்கு வசனங்கள் இல்லை.',
+                      ),
                       textAlign: TextAlign.center,
                     ),
                   ),
@@ -235,6 +244,7 @@ class _ChapterSettingsSheet extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final prefs = ref.watch(readerPrefsProvider);
     final notifier = ref.read(readerPrefsProvider.notifier);
+    final lang = prefs.language;
     return SafeArea(
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -242,7 +252,10 @@ class _ChapterSettingsSheet extends ConsumerWidget {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Font size', style: Theme.of(context).textTheme.labelLarge),
+            Text(
+              lang.t('Font size', 'எழுத்து அளவு'),
+              style: Theme.of(context).textTheme.labelLarge,
+            ),
             const SizedBox(height: 8),
             SegmentedButton<FontSize>(
               segments: const [
@@ -255,13 +268,25 @@ class _ChapterSettingsSheet extends ConsumerWidget {
               onSelectionChanged: (s) => notifier.setFontSize(s.first),
             ),
             const SizedBox(height: 16),
-            Text('Theme', style: Theme.of(context).textTheme.labelLarge),
+            Text(
+              lang.t('Theme', 'தீம்'),
+              style: Theme.of(context).textTheme.labelLarge,
+            ),
             const SizedBox(height: 8),
             SegmentedButton<ThemeMode>(
-              segments: const [
-                ButtonSegment(value: ThemeMode.system, label: Text('System')),
-                ButtonSegment(value: ThemeMode.light, label: Text('Light')),
-                ButtonSegment(value: ThemeMode.dark, label: Text('Dark')),
+              segments: [
+                ButtonSegment(
+                  value: ThemeMode.system,
+                  label: Text(lang.t('System', 'கணினி')),
+                ),
+                ButtonSegment(
+                  value: ThemeMode.light,
+                  label: Text(lang.t('Light', 'வெளிச்சம்')),
+                ),
+                ButtonSegment(
+                  value: ThemeMode.dark,
+                  label: Text(lang.t('Dark', 'இருள்')),
+                ),
               ],
               selected: {prefs.themeMode},
               onSelectionChanged: (s) => notifier.setThemeMode(s.first),

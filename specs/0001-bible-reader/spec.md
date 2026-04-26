@@ -27,6 +27,7 @@ P1 (Yearly Reader), P2 (Devotional Reader), P3 (Listener) — all converge on th
 
 - Inherits NFR-PERF-02 (≤500 ms chapter open offline) and NFR-OFFLINE from the master spec.
 - Tamil text must render correctly on iOS and on Android API 23+ (no missing glyphs); fall back to a bundled Noto Sans Tamil if the system font is absent.
+- **UI shell strings** (screen titles, section headers, settings labels, weekday/month names) follow the chosen reading language. v1 keeps the EN/TA pairs inline via `core/i18n.dart`'s `Lang.t(en, ta)` helper; ARB-based localization is deferred per master NFR-I18N until a third language. Note: this affects shell strings only — Tamil **verse text** is gated on the unresolved Tamil source (see §Risks).
 
 ## Data contracts
 

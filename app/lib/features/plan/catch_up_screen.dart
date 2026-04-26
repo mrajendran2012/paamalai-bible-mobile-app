@@ -3,8 +3,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
+import '../../core/i18n.dart';
+import '../../data/bible/book.dart';
 import '../../data/plan/canon.dart';
 import '../../data/plan/yearly_plan.dart';
+import '../reader/reader_providers.dart';
 import 'plan_providers.dart';
 
 /// Lists missed plan days newest-first with a Mark-complete affordance.
@@ -17,6 +20,7 @@ class CatchUpScreen extends ConsumerWidget {
     final plan = ref.watch(activePlanProvider);
     final missed = ref.watch(missedDayIndicesProvider);
     final state = ref.watch(planControllerProvider);
+    final lang = ref.watch(readerPrefsProvider.select((p) => p.language));
 
     return Scaffold(
       appBar: AppBar(
@@ -24,10 +28,10 @@ class CatchUpScreen extends ConsumerWidget {
           icon: const Icon(Icons.arrow_back),
           onPressed: () => context.go('/plan'),
         ),
-        title: const Text('Catch up'),
+        title: Text(lang.t('Catch up', 'பிடிக்க')),
       ),
       body: missed.isEmpty || plan == null
-          ? const _AllCaughtUp()
+          ? _AllCaughtUp(lang: lang)
           : ListView.builder(
               padding: const EdgeInsets.all(16),
               itemCount: missed.length,
@@ -36,7 +40,11 @@ class CatchUpScreen extends ConsumerWidget {
                 final dayIdx = missed[missed.length - 1 - i];
                 final day = plan[dayIdx - 1];
                 final completed = state.completedDays.contains(dayIdx);
-                return _MissedDayCard(day: day, completed: completed);
+                return _MissedDayCard(
+                  day: day,
+                  completed: completed,
+                  lang: lang,
+                );
               },
             ),
     );
@@ -44,15 +52,23 @@ class CatchUpScreen extends ConsumerWidget {
 }
 
 class _MissedDayCard extends ConsumerWidget {
-  const _MissedDayCard({required this.day, required this.completed});
+  const _MissedDayCard({
+    required this.day,
+    required this.completed,
+    required this.lang,
+  });
 
   final PlanDay day;
   final bool completed;
+  final Lang lang;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final scheme = Theme.of(context).colorScheme;
-    final dateLabel = DateFormat('EEEE, MMM d').format(day.date);
+    final dateLabel =
+        DateFormat('EEEE, MMM d', dateLocaleFor(lang)).format(day.date);
+    final dayLabel =
+        lang == Lang.ta ? 'நாள் ${day.dayIndex}' : 'Day ${day.dayIndex}';
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: Card(
@@ -63,7 +79,7 @@ class _MissedDayCard extends ConsumerWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'Day ${day.dayIndex}',
+                dayLabel,
                 style: TextStyle(
                   color: scheme.primary,
                   fontWeight: FontWeight.w600,
@@ -82,7 +98,7 @@ class _MissedDayCard extends ConsumerWidget {
                   for (final ch in day.chapters)
                     ActionChip(
                       label: Text(
-                        '${bookNamesEn[ch.bookCode] ?? ch.bookCode} ${ch.chapter}',
+                        '${bookNameFor(ch.bookCode, lang == Lang.ta)} ${ch.chapter}',
                       ),
                       onPressed: () => context
                           .go('/reader/${ch.bookCode}/${ch.chapter}'),
@@ -95,14 +111,18 @@ class _MissedDayCard extends ConsumerWidget {
                 child: completed
                     ? OutlinedButton.icon(
                         icon: const Icon(Icons.check_circle, size: 18),
-                        label: const Text('Completed — undo'),
+                        label: Text(
+                          lang.t('Completed — undo', 'முடிந்தது — மீட்டமை'),
+                        ),
                         onPressed: () => ref
                             .read(planControllerProvider.notifier)
                             .unmark(day.dayIndex),
                       )
                     : FilledButton.icon(
                         icon: const Icon(Icons.check, size: 18),
-                        label: const Text('Mark complete'),
+                        label: Text(
+                          lang.t('Mark complete', 'முடிந்தது என்று குறி'),
+                        ),
                         onPressed: () => ref
                             .read(planControllerProvider.notifier)
                             .markComplete(day.dayIndex),
@@ -117,7 +137,8 @@ class _MissedDayCard extends ConsumerWidget {
 }
 
 class _AllCaughtUp extends StatelessWidget {
-  const _AllCaughtUp();
+  const _AllCaughtUp({required this.lang});
+  final Lang lang;
 
   @override
   Widget build(BuildContext context) {
@@ -134,7 +155,10 @@ class _AllCaughtUp extends StatelessWidget {
             ),
             const SizedBox(height: 12),
             Text(
-              "You're all caught up.",
+              lang.t(
+                "You're all caught up.",
+                'நீங்கள் முழுமையாக பின்தொடர்ந்துள்ளீர்கள்.',
+              ),
               style: Theme.of(context).textTheme.titleMedium,
             ),
           ],

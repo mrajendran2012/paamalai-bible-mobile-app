@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/i18n.dart';
 import '../../data/bible/book.dart';
 import '../../data/prefs/reader_prefs_repository.dart';
 import 'reader_providers.dart';
@@ -20,11 +21,11 @@ class ReaderScreen extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Reader'),
+        title: Text(lang.t('Reader', 'வாசிப்பு')),
         actions: [
           _LanguageToggle(current: lang),
           IconButton(
-            tooltip: 'Display settings',
+            tooltip: lang.t('Display settings', 'காட்சி அமைப்புகள்'),
             icon: const Icon(Icons.tune),
             onPressed: () => _showSettingsSheet(context),
           ),
@@ -50,9 +51,9 @@ class _BookList extends StatelessWidget {
     final nt = books.where((b) => b.testament == 'NT').toList();
     return ListView(
       children: [
-        const _SectionHeader(label: 'Old Testament'),
+        _SectionHeader(label: lang.t('Old Testament', 'பழைய ஏற்பாடு')),
         for (final b in ot) _BookTile(book: b, lang: lang),
-        const _SectionHeader(label: 'New Testament'),
+        _SectionHeader(label: lang.t('New Testament', 'புதிய ஏற்பாடு')),
         for (final b in nt) _BookTile(book: b, lang: lang),
       ],
     );
@@ -252,6 +253,7 @@ class _SettingsSheet extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final prefs = ref.watch(readerPrefsProvider);
     final notifier = ref.read(readerPrefsProvider.notifier);
+    final lang = prefs.language;
     return SafeArea(
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -260,11 +262,14 @@ class _SettingsSheet extends ConsumerWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Display',
+              lang.t('Display', 'காட்சி'),
               style: Theme.of(context).textTheme.titleMedium,
             ),
             const SizedBox(height: 12),
-            Text('Font size', style: Theme.of(context).textTheme.labelLarge),
+            Text(
+              lang.t('Font size', 'எழுத்து அளவு'),
+              style: Theme.of(context).textTheme.labelLarge,
+            ),
             const SizedBox(height: 8),
             SegmentedButton<FontSize>(
               segments: const [
@@ -277,13 +282,25 @@ class _SettingsSheet extends ConsumerWidget {
               onSelectionChanged: (s) => notifier.setFontSize(s.first),
             ),
             const SizedBox(height: 16),
-            Text('Theme', style: Theme.of(context).textTheme.labelLarge),
+            Text(
+              lang.t('Theme', 'தீம்'),
+              style: Theme.of(context).textTheme.labelLarge,
+            ),
             const SizedBox(height: 8),
             SegmentedButton<ThemeMode>(
-              segments: const [
-                ButtonSegment(value: ThemeMode.system, label: Text('System')),
-                ButtonSegment(value: ThemeMode.light, label: Text('Light')),
-                ButtonSegment(value: ThemeMode.dark, label: Text('Dark')),
+              segments: [
+                ButtonSegment(
+                  value: ThemeMode.system,
+                  label: Text(lang.t('System', 'கணினி')),
+                ),
+                ButtonSegment(
+                  value: ThemeMode.light,
+                  label: Text(lang.t('Light', 'வெளிச்சம்')),
+                ),
+                ButtonSegment(
+                  value: ThemeMode.dark,
+                  label: Text(lang.t('Dark', 'இருள்')),
+                ),
               ],
               selected: {prefs.themeMode},
               onSelectionChanged: (s) => notifier.setThemeMode(s.first),
