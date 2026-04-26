@@ -50,6 +50,11 @@ pubspec.lock
 *.ipr
 *.iws
 
+# --- Claude Code ---
+# Per-machine permission/local settings; the team-shared settings.json (no
+# `.local`) is checked in if/when it exists.
+.claude/settings.local.json
+
 # --- macOS / Windows ---
 .DS_Store
 Thumbs.db
