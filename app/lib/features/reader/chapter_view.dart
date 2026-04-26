@@ -5,11 +5,14 @@ import 'package:go_router/go_router.dart';
 import 'package:scrollable_positioned_list/scrollable_positioned_list.dart';
 
 import '../../core/i18n.dart';
+import '../../data/audio/tts_controller.dart';
+import '../../data/audio/tts_providers.dart';
 import '../../data/bible/book.dart';
 import '../../data/prefs/reader_prefs_repository.dart';
 import '../about/about_tile.dart';
 import 'reader_providers.dart';
 import 'verse_widget.dart';
+import 'voice_picker.dart';
 
 /// Renders one chapter as a scrollable list of verses with verse-anchored
 /// language toggle (FR-BR-02, FR-BR-03).
@@ -59,11 +62,53 @@ class _ChapterViewState extends ConsumerState<ChapterView> {
     if (v != _anchorVerse) _anchorVerse = v;
   }
 
+  /// When the user navigates away from the chapter view, stop playback so
+  /// it doesn't keep reading from the prior chapter while a new one loads.
+  @override
+  void deactivate() {
+    ref.read(ttsControllerProvider).stop();
+    super.deactivate();
+  }
+
+  Future<void> _onPlayTapped(int bookId) async {
+    final ctrl = ref.read(ttsControllerProvider);
+    final state = ctrl.state;
+    if (state == TtsPlaybackState.playing) {
+      await ctrl.pause();
+      return;
+    }
+    if (state == TtsPlaybackState.paused) {
+      await ctrl.resume();
+      return;
+    }
+    final prefs = ref.read(readerPrefsProvider);
+    final ttsPrefs = ref.read(ttsPrefsProvider);
+    final verses = await ref.read(
+      chapterProvider(
+        ChapterRequest(
+          bookId: bookId,
+          chapter: widget.chapter,
+          lang: prefs.language,
+        ),
+      ).future,
+    );
+    if (verses.isEmpty) return;
+    await ctrl.playChapter(
+      verses: verses,
+      lang: prefs.language,
+      voiceName: ttsPrefs.voiceName,
+      voiceLocale: ttsPrefs.voiceLocale,
+      speed: ttsPrefs.speed,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final prefs = ref.watch(readerPrefsProvider);
     final asyncBooks = ref.watch(booksProvider);
     final asyncRepo = ref.watch(bibleRepositoryProvider);
+    final ttsState =
+        ref.watch(ttsStateProvider).asData?.value ?? TtsPlaybackState.idle;
 
     return Scaffold(
       appBar: AppBar(
@@ -90,6 +135,33 @@ class _ChapterViewState extends ConsumerState<ChapterView> {
           },
         ),
         actions: [
+          asyncBooks.maybeWhen(
+            data: (books) {
+              final book = books.firstWhere(
+                (b) => b.code == widget.bookCode,
+                orElse: () => Book(
+                  id: 0,
+                  code: widget.bookCode,
+                  nameEn: widget.bookCode,
+                  nameTa: widget.bookCode,
+                  order: 0,
+                  testament: 'OT',
+                ),
+              );
+              return IconButton(
+                tooltip: ttsState == TtsPlaybackState.playing
+                    ? prefs.language.t('Pause', 'இடைநிறுத்து')
+                    : prefs.language.t('Play', 'வாசிக்க'),
+                icon: Icon(
+                  ttsState == TtsPlaybackState.playing
+                      ? Icons.pause_circle_outline
+                      : Icons.play_circle_outline,
+                ),
+                onPressed: book.id == 0 ? null : () => _onPlayTapped(book.id),
+              );
+            },
+            orElse: () => const SizedBox.shrink(),
+          ),
           _LangPill(
             current: prefs.language,
             tamilEnabled: asyncRepo.maybeWhen(
@@ -292,6 +364,10 @@ class _ChapterSettingsSheet extends ConsumerWidget {
               selected: {prefs.themeMode},
               onSelectionChanged: (s) => notifier.setThemeMode(s.first),
             ),
+            const SizedBox(height: 16),
+            const Divider(),
+            const SizedBox(height: 8),
+            const VoicePicker(),
             const SizedBox(height: 8),
             const Divider(),
             const AboutTile(),

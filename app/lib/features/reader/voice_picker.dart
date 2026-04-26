@@ -1,0 +1,129 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../../core/i18n.dart';
+import '../../data/audio/tts_providers.dart';
+import '../../data/audio/tts_voice.dart';
+import '../../data/bible/book.dart';
+import 'reader_providers.dart';
+
+/// Voice picker for FR-AR-06. Shows the device's voices for the active
+/// reading language with `(Female)` / `(Male)` tags where the OS reports
+/// gender. Tapping *Auto* clears the override.
+class VoicePicker extends ConsumerWidget {
+  const VoicePicker({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final lang = ref.watch(readerPrefsProvider.select((p) => p.language));
+    final asyncVoices = ref.watch(voicesForLangProvider(lang));
+    final ttsPrefs = ref.watch(ttsPrefsProvider);
+    final notifier = ref.read(ttsPrefsProvider.notifier);
+    final scheme = Theme.of(context).colorScheme;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          lang.t('Voice', 'குரல்'),
+          style: Theme.of(context).textTheme.labelLarge,
+        ),
+        const SizedBox(height: 8),
+        asyncVoices.when(
+          loading: () => const SizedBox(
+            height: 32,
+            child: Center(
+              child: SizedBox(
+                width: 16,
+                height: 16,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
+            ),
+          ),
+          error: (e, _) => Text(
+            lang.t(
+              'Could not list voices.',
+              'குரல்களை பட்டியலிட முடியவில்லை.',
+            ),
+            style: TextStyle(color: scheme.error),
+          ),
+          data: (voices) {
+            if (voices.isEmpty) {
+              return Text(
+                lang.t(
+                  'No voices installed for this language. Add one from your device’s text-to-speech settings.',
+                  'இந்த மொழிக்கு குரல்கள் நிறுவப்படவில்லை. உங்கள் சாதனத்தின் text-to-speech அமைப்புகளில் சேர்க்கவும்.',
+                ),
+                style: Theme.of(context).textTheme.bodySmall,
+              );
+            }
+            return Column(
+              children: [
+                _VoiceTile(
+                  title: lang.t('Auto (system default)', 'தானியங்கி'),
+                  subtitle: null,
+                  selected: ttsPrefs.voiceName == null,
+                  onTap: notifier.clearVoice,
+                ),
+                for (final v in voices)
+                  _VoiceTile(
+                    title: v.name,
+                    subtitle: _genderLabel(v.gender, lang),
+                    selected: ttsPrefs.voiceName == v.name &&
+                        ttsPrefs.voiceLocale == v.locale,
+                    onTap: () => notifier.setVoice(
+                      name: v.name,
+                      locale: v.locale,
+                    ),
+                  ),
+              ],
+            );
+          },
+        ),
+      ],
+    );
+  }
+
+  static String? _genderLabel(TtsGender g, Lang lang) {
+    switch (g) {
+      case TtsGender.female:
+        return lang.t('Female', 'பெண்');
+      case TtsGender.male:
+        return lang.t('Male', 'ஆண்');
+      case TtsGender.other:
+        return lang.t('Other', 'மற்றவை');
+      case TtsGender.unknown:
+        return null;
+    }
+  }
+}
+
+class _VoiceTile extends StatelessWidget {
+  const _VoiceTile({
+    required this.title,
+    required this.subtitle,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final String title;
+  final String? subtitle;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return ListTile(
+      contentPadding: EdgeInsets.zero,
+      dense: true,
+      leading: Icon(
+        selected ? Icons.radio_button_checked : Icons.radio_button_unchecked,
+        color: selected ? scheme.primary : scheme.onSurfaceVariant,
+      ),
+      title: Text(title),
+      subtitle: subtitle == null ? null : Text(subtitle!),
+      onTap: onTap,
+    );
+  }
+}

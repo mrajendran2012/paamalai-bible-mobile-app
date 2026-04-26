@@ -1,0 +1,175 @@
+import 'dart:async';
+
+import 'package:flutter_tts/flutter_tts.dart';
+
+import '../bible/book.dart';
+import 'tts_voice.dart';
+
+/// Playback state surfaced to the UI. v0 is intentionally narrow:
+/// `idle` / `playing` / `paused`. Verse highlighting and progress fields
+/// land with FR-AR-02 in a follow-up PR.
+enum TtsPlaybackState { idle, playing, paused }
+
+/// BCP-47 locale tag for `flutter_tts.setLanguage`.
+String localeFor(Lang lang) => lang == Lang.ta ? 'ta-IN' : 'en-US';
+
+/// Thin wrapper around `flutter_tts` that exposes:
+///   * a per-verse utterance queue with completion-driven advance,
+///   * play / pause / stop,
+///   * voice listing for a given locale,
+///   * voice override (set via [setVoice], cleared via [clearVoice]).
+///
+/// Implements FR-AR-01 + FR-AR-06 (v0 slice). The controller is created once
+/// per app session via Riverpod and reused across chapter views.
+class TtsController {
+  TtsController({FlutterTts? tts}) : _tts = tts ?? FlutterTts() {
+    _tts.setCompletionHandler(_onUtteranceComplete);
+    _tts.setErrorHandler((msg) {
+      _state = TtsPlaybackState.idle;
+      _stateController.add(_state);
+    });
+  }
+
+  final FlutterTts _tts;
+  final _stateController = StreamController<TtsPlaybackState>.broadcast();
+
+  Stream<TtsPlaybackState> get stateStream => _stateController.stream;
+  TtsPlaybackState get state => _state;
+  TtsPlaybackState _state = TtsPlaybackState.idle;
+
+  List<String> _queue = const [];
+  int _index = 0;
+
+  /// Voices available for [locale]. Returns an empty list if the platform
+  /// reports no voices (web / unsupported). Callers should treat unknown
+  /// gender as "Auto"-eligible — see [TtsVoice.gender].
+  Future<List<TtsVoice>> voicesFor(String locale) async {
+    final raw = await _tts.getVoices;
+    if (raw is! List) return const [];
+    final out = <TtsVoice>[];
+    for (final v in raw) {
+      final voice = TtsVoice.tryFromMap(v);
+      if (voice == null) continue;
+      // Compare on the language prefix so 'en-US' matches both 'en' and 'en-GB'.
+      if (_matchesLocale(voice.locale, locale)) out.add(voice);
+    }
+    out.sort((a, b) {
+      // Group by gender (F, M, other, unknown), then by name.
+      final ga = _genderRank(a.gender);
+      final gb = _genderRank(b.gender);
+      if (ga != gb) return ga.compareTo(gb);
+      return a.name.compareTo(b.name);
+    });
+    return out;
+  }
+
+  /// Pin a specific voice. Pass [name]+[locale] or call [clearVoice].
+  Future<void> setVoice({required String name, required String locale}) async {
+    await _tts.setVoice({'name': name, 'locale': locale});
+  }
+
+  Future<void> clearVoice() async {
+    // flutter_tts has no explicit "unset voice" API; setting language alone
+    // is enough — the platform reverts to the locale's default voice.
+  }
+
+  Future<void> setLanguage(Lang lang) async {
+    await _tts.setLanguage(localeFor(lang));
+  }
+
+  Future<void> setSpeed(double speed) async {
+    // flutter_tts speech rate isn't 1.0 = normal across platforms — Android
+    // treats 0.5 as "normal", iOS treats ~0.5 as normal too. We map our
+    // user-facing 1.0 to 0.5 platform value as a reasonable default.
+    await _tts.setSpeechRate(speed * 0.5);
+  }
+
+  /// Begins reading [verses] in order. Replaces any in-flight playback.
+  Future<void> playChapter({
+    required List<Verse> verses,
+    required Lang lang,
+    String? voiceName,
+    String? voiceLocale,
+    double speed = 1.0,
+  }) async {
+    await _tts.stop();
+    await setLanguage(lang);
+    await setSpeed(speed);
+    final wantedLocale = localeFor(lang);
+    if (voiceName != null &&
+        voiceLocale != null &&
+        _matchesLocale(voiceLocale, wantedLocale)) {
+      await setVoice(name: voiceName, locale: voiceLocale);
+    }
+    _queue = verses.map((v) => v.text).toList(growable: false);
+    _index = 0;
+    if (_queue.isEmpty) return;
+    _state = TtsPlaybackState.playing;
+    _stateController.add(_state);
+    await _tts.speak(_queue[_index]);
+  }
+
+  Future<void> pause() async {
+    if (_state != TtsPlaybackState.playing) return;
+    final ok = await _tts.pause();
+    if (ok == 1) {
+      _state = TtsPlaybackState.paused;
+      _stateController.add(_state);
+    } else {
+      // Some Android engines don't support pause — fall back to stop.
+      await stop();
+    }
+  }
+
+  Future<void> resume() async {
+    if (_state != TtsPlaybackState.paused) return;
+    if (_index >= _queue.length) {
+      _state = TtsPlaybackState.idle;
+      _stateController.add(_state);
+      return;
+    }
+    _state = TtsPlaybackState.playing;
+    _stateController.add(_state);
+    await _tts.speak(_queue[_index]);
+  }
+
+  Future<void> stop() async {
+    await _tts.stop();
+    _state = TtsPlaybackState.idle;
+    _stateController.add(_state);
+    _queue = const [];
+    _index = 0;
+  }
+
+  Future<void> dispose() async {
+    await _tts.stop();
+    await _stateController.close();
+  }
+
+  Future<void> _onUtteranceComplete() async {
+    _index += 1;
+    if (_index < _queue.length && _state == TtsPlaybackState.playing) {
+      await _tts.speak(_queue[_index]);
+    } else if (_index >= _queue.length) {
+      _state = TtsPlaybackState.idle;
+      _stateController.add(_state);
+    }
+  }
+
+  /// Treat 'en' / 'en-US' / 'en_US' / 'en-GB' as compatible — flutter_tts
+  /// returns wildly varying locale strings across platforms.
+  bool _matchesLocale(String voiceLocale, String wantedLocale) {
+    final v = voiceLocale.replaceAll('_', '-').toLowerCase();
+    final w = wantedLocale.replaceAll('_', '-').toLowerCase();
+    final vPrefix = v.split('-').first;
+    final wPrefix = w.split('-').first;
+    return vPrefix == wPrefix;
+  }
+
+  int _genderRank(TtsGender g) => switch (g) {
+        TtsGender.female => 0,
+        TtsGender.male => 1,
+        TtsGender.other => 2,
+        TtsGender.unknown => 3,
+      };
+}
