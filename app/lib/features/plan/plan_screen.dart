@@ -8,6 +8,7 @@ import '../../data/bible/book.dart';
 import '../../data/plan/canon.dart';
 import '../../data/plan/yearly_plan.dart';
 import '../reader/reader_providers.dart';
+import '../settings/settings_button.dart';
 import 'plan_providers.dart';
 
 /// Persona P1 — Yearly Reader. Today's plan is the home screen for them.
@@ -25,7 +26,10 @@ class PlanScreen extends ConsumerWidget {
     final lang = ref.watch(readerPrefsProvider.select((p) => p.language));
 
     return Scaffold(
-      appBar: AppBar(title: Text(lang.t("Today's Plan", 'இன்றைய திட்டம்'))),
+      appBar: AppBar(
+        title: Text(lang.t("Today's Plan", 'இன்றைய திட்டம்')),
+        actions: const [SettingsButton()],
+      ),
       body: state.hasPlan ? const _ActivePlanBody() : const _EmptyPlanBody(),
     );
   }

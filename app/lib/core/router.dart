@@ -10,6 +10,7 @@ import '../features/plan/catch_up_screen.dart';
 import '../features/plan/plan_screen.dart';
 import '../features/reader/chapter_view.dart';
 import '../features/reader/reader_screen.dart';
+import '../features/settings/settings_screen.dart';
 import '../shared/widgets/home_shell.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
@@ -51,6 +52,10 @@ final routerProvider = Provider<GoRouter>((ref) {
             ],
           ),
           GoRoute(path: '/devotion', builder: (_, __) => const DevotionScreen()),
+          GoRoute(
+            path: '/settings',
+            builder: (_, __) => const SettingsScreen(),
+          ),
           GoRoute(
             path: '/reader',
             builder: (_, __) => const ReaderScreen(),

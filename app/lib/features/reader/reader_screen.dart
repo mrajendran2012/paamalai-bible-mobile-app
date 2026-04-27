@@ -6,6 +6,7 @@ import '../../core/i18n.dart';
 import '../../data/bible/book.dart';
 import '../../data/prefs/reader_prefs_repository.dart';
 import '../about/about_tile.dart';
+import '../settings/settings_button.dart';
 import 'reader_providers.dart';
 
 /// Browse books grouped OT / NT in the current reading language.
@@ -30,6 +31,7 @@ class ReaderScreen extends ConsumerWidget {
             icon: const Icon(Icons.tune),
             onPressed: () => _showSettingsSheet(context),
           ),
+          const SettingsButton(),
         ],
       ),
       body: asyncBooks.when(
