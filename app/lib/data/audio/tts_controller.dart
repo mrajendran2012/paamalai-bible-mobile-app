@@ -72,6 +72,16 @@ class TtsController {
     } catch (_) {
       // Web / unsupported platforms — ignore.
     }
+
+    // Set volume + pitch to neutral defaults. Some Android engines come up
+    // with attenuated volume which the user perceives as muffled / static-y
+    // playback; pinning these guarantees full output level.
+    try {
+      await _tts.setVolume(1.0);
+      await _tts.setPitch(1.0);
+    } catch (_) {
+      // Some web implementations don't support these — ignore.
+    }
   }
 
   bool _initialised = false;
@@ -97,10 +107,17 @@ class TtsController {
       if (_matchesLocale(voice.locale, locale)) out.add(voice);
     }
     out.sort((a, b) {
-      // Group by gender (F, M, other, unknown), then by name.
+      // 1. Quality first — premium/enhanced voices are noticeably less
+      //    robotic, so the user lands on the best option even if they
+      //    don't read the badges.
+      final qa = qualityRank(a.quality);
+      final qb = qualityRank(b.quality);
+      if (qa != qb) return qa.compareTo(qb);
+      // 2. Then by gender (F, M, other, unknown).
       final ga = _genderRank(a.gender);
       final gb = _genderRank(b.gender);
       if (ga != gb) return ga.compareTo(gb);
+      // 3. Finally alphabetical for stable ordering.
       return a.name.compareTo(b.name);
     });
     return out;

@@ -14,7 +14,15 @@ Format:
 
 ## Open
 
-_(none)_
+### B-0003 — Audio playback sounds robotic / has static artifacts &nbsp;<sub>logged 2026-04-26</sub>
+
+_Affects: specs/0004-audio-reader/ (NFR-AUDIO-Q, FR-AR-01)_
+
+- **Symptom:** Tapping *Listen* on a chapter produces audio with audible static / robotic artifacts. User wants "crisp clear high definition audio."
+- **Root cause:** v1 uses device-native TTS via `flutter_tts`. The audio fidelity is bounded by which voice is installed on the user's OS — most stock devices ship only the basic compact voice for each language, and that voice is concatenative (low quality). Premium / Enhanced / Network voices exist but require user-initiated download from the system TTS settings.
+- **Fix:** Two layers.
+  - **v0 mitigation (this PR, commit pending):** detect voice quality and surface tags in the picker so users pick the best available voice; sort picker entries by quality so "Auto" lands on the best one; pin volume + pitch to 1.0; add *Install higher-quality voices* CTA opening system TTS settings.
+  - **HD upgrade path (future, scoped to a follow-up PR):** server-side cloud TTS (Google Cloud TTS WaveNet, Azure Speech Neural, or ElevenLabs) via a new Supabase edge function, with per-`(book, chapter, voice)` MP3 caching. Documented in `specs/0004-audio-reader/spec.md` §Risks. Not in v1.
 
 ---
 

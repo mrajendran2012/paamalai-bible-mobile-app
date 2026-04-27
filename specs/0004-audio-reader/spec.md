@@ -50,6 +50,7 @@ Tracked-but-deferred to follow-up PRs (still in spec for traceability):
 
 - TTS interactions must remain available offline (covered by NFR-OFFLINE; device TTS is local on both platforms).
 - Inherits NFR-A11Y — playback controls are minimum 44 pt tap targets, screen-reader-labeled.
+- **NFR-AUDIO-Q (audio quality):** v1 uses device-native TTS, so quality is bounded by which voices the user has installed. We mitigate by (a) detecting voice quality (iOS `quality`, Android `networkConnectionRequired` / numeric quality), (b) sorting picker entries best-first so "Auto"-leaning users land on the best available voice, (c) tagging entries with `Premium` / `Enhanced` / `Network` / `Standard` / `Compact` so users can pick informed, (d) surfacing an *Install higher-quality voices* CTA that opens the system TTS settings, (e) pinning `setVolume(1.0)` and `setPitch(1.0)` so engine defaults can't attenuate output. Cloud-TTS (Google Cloud TTS, Azure Speech, ElevenLabs) is the path to true HD audio but is out of scope for v1 — tracked as a future option in §Risks.
 
 ## Data contracts
 
@@ -75,6 +76,7 @@ class TtsPrefs {
 
 - **Tamil TTS gap on some Android OEMs** — surfaced via FR-AR-05.
 - **Verse-boundary highlighting accuracy** depends on `flutter_tts` `setProgressHandler` granularity; on some Androids it fires per-utterance, not per-word. We split each chapter into per-verse utterances so the handler fires at verse boundaries reliably.
+- **Device TTS quality ceiling.** Even on the best-installed voice, device synthesis still has perceptible robotic / "static" artifacts compared to neural cloud TTS. Mitigations are in NFR-AUDIO-Q. If user feedback continues to push for HD audio, the upgrade path is a Supabase edge function that calls a cloud TTS provider (Google Cloud TTS WaveNet, Azure Speech Neural, or ElevenLabs), caches the resulting MP3 per `(book, chapter, voice)` in storage, and streams it to the app — same architecture as the daily-devotion edge function. Cost ballpark: $4–16 per 1M characters depending on provider; full Bible ~3.5M characters → one-time cache fill of ~$15–55 per voice. Not in v1; tracked as a follow-up.
 
 ## Verification
 
